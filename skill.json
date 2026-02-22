@@ -1,0 +1,18 @@
+{
+  "name": "polygent-trading",
+  "version": "1.0.0",
+  "description": "AI agent skill for live prediction market trading on Polymarket",
+  "author": "BAiSED",
+  "license": "MIT",
+  "install": "./install.sh",
+  "entrypoint": "./scripts/trade.sh",
+  "config": {
+    "file": "~/.config/polygent/credentials.json",
+    "template": {
+      "signerPrivateKey": "YOUR_SIGNER_PRIVATE_KEY",
+      "clobApiKey": "YOUR_CLOB_API_KEY",
+      "clobSecret": "YOUR_CLOB_SECRET",
+      "funderAddress": "YOUR_FUNDER_ADDRESS"
+    }
+  }
+}
