@@ -1,107 +1,125 @@
 # Polygent Trading Skill
 
-**AI agent skill for live prediction market trading on Polymarket.**
+**Route prediction market trades through Polygent's relay infrastructure on Polymarket.**
 
-## Overview
+## How It Works
 
-This skill enables AI agents to:
-- Place live buy/sell orders on Polymarket
-- Monitor positions and P&L in real-time
-- Execute 6 concurrent trading strategies
-- Track FullSet arbitrage opportunities
-- Manage risk with max exposure limits
+Polygent is a B2B trade relay for Polymarket. Your agent signs orders locally with its own keys and capital. Polygent forwards them to the CLOB with builder attribution — earning platform fees while your agent keeps full custody.
+
+```
+Your Agent → signs order locally → POST /api/orders/relay → Polygent adds builder headers → Polymarket CLOB
+```
+
+**Zero custody.** Your USDC stays in your Polymarket proxy wallet. Polygent never touches your funds.
 
 ## Prerequisites
 
-1. **Polymarket Account** with KYC complete
-2. **USDC on Polygon** in trading wallet
-3. **VPS running Polygent** (or local instance)
+1. **Polymarket Account** with API access (derive L2 keys from your wallet)
+2. **USDC on Polygon** in your Polymarket proxy wallet
+3. **Node.js 18+** and **ethers v5** (for EIP-712 order signing)
+4. **jq** and **curl** installed
 
-## Quick Start
+## Setup
 
-### 1. Configure Credentials
+### 1. Register Your Agent
 
-Create `~/.config/polygent/credentials.json`:
-```json
-{
-  "signerPrivateKey": "YOUR_SIGNER_PK",
-  "clobApiKey": "YOUR_CLOB_API_KEY",
-  "clobSecret": "YOUR_CLOB_SECRET",
-  "funderAddress": "0x..."
-}
+```bash
+./scripts/agents.sh register
 ```
 
-### 2. Place Your First Trade
+Save the API key from the response — this is your `polygentApiKey`.
+
+### 2. Configure Credentials
+
+```bash
+mkdir -p ~/.config/polygent
+cat > ~/.config/polygent/credentials.json << 'EOF'
+{
+  "polygentApiKey": "YOUR_POLYGENT_AGENT_API_KEY",
+  "clobApiKey": "YOUR_POLYMARKET_CLOB_API_KEY",
+  "clobSecret": "YOUR_POLYMARKET_CLOB_SECRET",
+  "clobPassphrase": "YOUR_POLYMARKET_CLOB_PASSPHRASE",
+  "signerPrivateKey": "YOUR_EOA_PRIVATE_KEY",
+  "funderAddress": "YOUR_POLYMARKET_PROXY_WALLET"
+}
+EOF
+chmod 600 ~/.config/polygent/credentials.json
+```
+
+### 3. Place a Trade
 
 ```bash
 ./scripts/trade.sh \
-  --market "0x1234..." \
+  --token-id "39376264776475247245933754837825206300655521756465016899702826574258616128839" \
   --side buy \
-  --amount 5
+  --price 0.45 \
+  --size 10
 ```
 
-### 3. Check Positions
+### 4. Check Positions
 
 ```bash
 ./scripts/positions.sh
+./scripts/positions.sh --status open
 ```
 
-## Core Scripts
+## Scripts
 
-### `trade.sh` - Execute Live Trades
+| Script | Purpose |
+|--------|---------|
+| `trade.sh` | Sign and relay orders to Polymarket via Polygent |
+| `positions.sh` | View your orders and fills |
+| `agents.sh` | Check health, leaderboard, register your agent |
 
-```bash
-# Buy YES shares
-./scripts/trade.sh --market "0xabc..." --side buy --amount 5
+## API Reference
 
-# Sell position
-./scripts/trade.sh --market "0xabc..." --side sell --amount 5
+**Relay endpoint:** `POST https://polygent.market/api/orders/relay`
+
+Headers:
+- `X-API-Key`: Your Polygent agent API key
+- `Content-Type`: application/json
+
+Body:
+```json
+{
+  "signedOrder": {
+    "salt": "1234567890",
+    "maker": "0xYourAddress",
+    "signer": "0xYourAddress",
+    "taker": "0x0000000000000000000000000000000000000000",
+    "tokenId": "CLOB_TOKEN_ID",
+    "makerAmount": "4500000",
+    "takerAmount": "10000000",
+    "side": 0,
+    "expiration": "0",
+    "nonce": "0",
+    "feeRateBps": "0",
+    "signatureType": 0,
+    "signature": "0x..."
+  }
+}
 ```
 
-### `positions.sh` - Monitor Portfolio
-
-```bash
-# All positions with P&L
-./scripts/positions.sh
-
-# Specific market
-./scripts/positions.sh --market "0xabc..."
+Response:
+```json
+{
+  "orderId": "ext_abc123",
+  "clobOrderId": "0xdef456...",
+  "status": "open"
+}
 ```
 
-### `agents.sh` - Control Trading Agents
+## Rate Limits
 
-```bash
-# Start all 6 agents
-./scripts/agents.sh start
+- 60 orders per minute per agent
+- Orders must pass EIP-712 signature verification (signer must match registered EOA)
 
-# Stop all agents
-./scripts/agents.sh stop
+## Security
 
-# Check agent status
-./scripts/agents.sh status
-```
-
-### `observer.sh` - Arbitrage Monitoring
-
-```bash
-# Start FullSet observer
-./scripts/observer.sh start
-
-# Get latest report
-./scripts/observer.sh report
-```
-
-## Risk Management
-
-Max limits configured on VPS:
-- Max order: $5
-- Max exposure: $50
-- 6 agents share pool
-
-## VPS Connection
-
-Default: `72.61.138.205:3000`
-Override: `export POLYGENT_VPS=your.vps.ip`
+- Orders are signed locally — your private key never leaves your machine
+- Polygent verifies the EIP-712 signature matches your registered wallet
+- Builder attribution is injected server-side (you don't need builder credentials)
+- Rate limiting prevents accidental spam
 
 ## License
 
