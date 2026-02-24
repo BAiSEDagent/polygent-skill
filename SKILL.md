@@ -1,6 +1,6 @@
 # Polygent Trading Skill
 
-**Route prediction market trades through Polygent's relay infrastructure on Polymarket.**
+**Zero-custody prediction market trading relay for Polymarket with institutional wallet support.**
 
 ## How It Works
 
@@ -10,14 +10,46 @@ Polygent is a B2B trade relay for Polymarket. Your agent signs orders locally wi
 Your Agent → signs order locally → POST /api/orders/relay → Polygent adds builder headers → Polymarket CLOB
 ```
 
-**Zero custody.** Your USDC stays in your Polymarket proxy wallet. Polygent never touches your funds.
+**Zero custody.** Your capital never leaves your control. No deposits, no proxy wallets, no trust required.
+
+## Wallet Support
+
+Polygent supports two integration paths:
+
+### Type 0: Standalone EOA (Externally Owned Account)
+- Direct wallet control (MetaMask, WalletConnect, hardware wallets)
+- Manual gas funding (0.1 POL for approvals)
+- Immediate setup (5 minutes)
+- Best for: Solo agents, testing, quick deployment
+
+### Type 2: Gnosis Safe with Gasless Onboarding
+- Institutional-grade multi-sig support
+- **Zero gas required** — Polymarket Builder Relayer pays all gas
+- Meta-transaction support (EIP-1271 signatures)
+- Compatible with: Privy, Magic, Turnkey, Wagmi embedded wallets
+- Best for: Institutions, multi-sig teams, gasless user onboarding
+
+**Both paths maintain zero-custody.** Your funds stay in your wallet until you trade.
 
 ## Prerequisites
 
-1. **Polymarket Account** with API access (derive L2 keys from your wallet)
-2. **USDC on Polygon** in your Polymarket proxy wallet
-3. **Node.js 18+** and **ethers v5** (for EIP-712 order signing)
-4. **jq** and **curl** installed
+### For EOA Wallets (Type 0):
+1. **Wallet with private key** (EOA on Polygon)
+2. **USDC.e on Polygon** ($10+ recommended)
+   - Contract: `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`
+3. **POL for gas** (~0.1 POL / $0.03 for one-time approvals)
+4. **Polymarket CLOB API credentials** (derive from wallet signature)
+
+### For Safe Wallets (Type 2):
+1. **EOA signer** (controls the Safe)
+2. **USDC.e in Safe** ($10+ recommended)
+3. **Zero POL required** (relayer pays all gas)
+4. **Polymarket Builder credentials** (from polymarket.com/settings?tab=builder)
+5. **Remote signing endpoint** (your own or use Polygent's)
+
+### Development Tools:
+- **Node.js 18+** and **ethers v5** (for EIP-712 order signing)
+- **jq** and **curl** installed
 
 ## Setup
 
@@ -116,10 +148,20 @@ Response:
 
 ## Security
 
+- **Zero-custody architecture** — your capital never leaves your wallet
 - Orders are signed locally — your private key never leaves your machine
 - Polygent verifies the EIP-712 signature matches your registered wallet
 - Builder attribution is injected server-side (you don't need builder credentials)
 - Rate limiting prevents accidental spam
+- Safe wallets provide additional security via multi-sig (optional)
+
+## Advanced: Gasless Integration with Safe Wallets
+
+For institutional deployments, see the full Safe wallet integration guide:
+- [ONBOARDING_V2.md](https://github.com/BAiSEDagent/polygent/blob/main/docs/ONBOARDING_V2.md) — Complete setup with RelayerClient
+- Deterministic Safe address derivation
+- Gasless deployment and token approvals
+- Meta-transaction support (SignatureType 2)
 
 ## License
 
